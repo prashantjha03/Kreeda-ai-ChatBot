@@ -8,7 +8,7 @@ const {
 } = require("@google/generative-ai");
 
 const app = express();
-const PORT = process.env.PORT || 5000; // use environment port for deployment
+
 
 // Enable CORS
 app.use(cors());
@@ -75,6 +75,8 @@ app.post("/chat", async (req, res) => {
 });
 
 // Start the server
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+const PORT = process.env.PORT || 1000;
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
