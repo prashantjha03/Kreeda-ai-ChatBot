@@ -6,7 +6,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const app = express();
 
 // Enable CORS with specific origins (add your Vercel URL)
-const allowedOrigins = ["https://your-vercel-app.vercel.app"];
+const allowedOrigins = ["https://kreeda-ai-chat-bot-frontend.vercel.app/"];
 app.use(
   cors({
     origin: allowedOrigins,
