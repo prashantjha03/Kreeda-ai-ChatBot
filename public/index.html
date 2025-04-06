@@ -18,25 +18,33 @@
     .scrollbar-hidden::-webkit-scrollbar { display: none; }
     .scrollbar-hidden { -ms-overflow-style: none; scrollbar-width: none; }
     .input-shadow { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .loading::after {
+      content: ' •••';
+      animation: dots 1s steps(5, end) infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: ' •'; }
+      40% { content: ' ••'; }
+      60% { content: ' •••'; }
+      80%, 100% { content: ' ••••'; }
+    }
   </style>
 </head>
 <body class="h-screen flex flex-col transition-colors duration-300" data-theme="light">
   <div class="flex flex-1 overflow-hidden">
-    <aside class="hidden md:block w-1/5 p-4 shadow-lg overflow-y-auto bg-white dark:bg-gray-800 transition-colors duration-300">
+    <aside class="hidden md:block w-1/5 p-4 shadow-lg overflow-y-auto bg-white dark:bg-gray-800 transition-colors">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Chat History</h2>
-        <div class="flex gap-2">
-          <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Toggle Theme">
-            <svg id="theme-icon" class="w-5 h-5 text-gray-800 dark:text-gray-200" fill="currentColor" viewBox="0 0 20 20">
-              <path id="icon-path" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
-            </svg>
-          </button>
-        </div>
+        <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Toggle Theme">
+          <svg id="theme-icon" class="w-5 h-5 text-gray-800 dark:text-gray-200" fill="currentColor" viewBox="0 0 20 20">
+            <path id="icon-path" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
+          </svg>
+        </button>
       </div>
       <div id="chat-history" class="space-y-2 scrollbar-hidden"></div>
     </aside>
 
-    <main class="flex-1 flex flex-col shadow-lg bg-white dark:bg-gray-900 transition-colors duration-300">
+    <main class="flex-1 flex flex-col shadow-lg bg-white dark:bg-gray-900 transition-colors">
       <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
         <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Kreeda-ai ⚽🏏🏀</h1>
         <div class="flex gap-2">
@@ -61,11 +69,12 @@
           type="text" 
           id="user-input" 
           placeholder="Ask me anything about sports..." 
-          class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 input-shadow transition-colors duration-300"
+          class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 input-shadow transition-colors"
           autocomplete="off"
         />
         <button 
           type="submit" 
+          id="send-btn" 
           class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition input-shadow"
         >
           Send
@@ -89,7 +98,7 @@
 
     class ChatManager {
       constructor() {
-        this.currentChatId = null; // Will be set after user is authenticated
+        this.currentChatId = null;
         this.chatHistory = {};
         this.theme = localStorage.getItem('theme') || 'light';
         this.isFirstMessage = true;
@@ -98,12 +107,13 @@
       }
 
       async init() {
-        // Apply theme first to avoid flash
         this.applyTheme();
-        
-        // Wait for auth state to resolve and enforce login
-        await new Promise(resolve => {
-          const unsubscribe = auth.onAuthStateChanged(user => {
+        await this.checkAuthState();
+      }
+
+      async checkAuthState() {
+        return new Promise((resolve) => {
+          const unsubscribe = auth.onAuthStateChanged((user) => {
             this.user = user ? {
               email: user.email,
               name: user.displayName || user.email.split('@')[0],
@@ -111,12 +121,12 @@
             } : null;
 
             if (!this.user) {
-              this.redirectToLogin();
+              this.updateUserStatus();
+              this.addMessage('Sports AI', 'Please log in to start chatting!');
               unsubscribe();
-              return;
+              return resolve();
             }
 
-            // Load user-specific data after authentication
             this.loadUserData();
             this.isInitialized = true;
             this.updateUserStatus();
@@ -127,7 +137,6 @@
             if (!this.chatHistory[this.currentChatId]) {
               this.addMessage('Sports AI', `Welcome back, ${this.user.name}! How can I help you with sports today?`);
             }
-
             unsubscribe();
             resolve();
           });
@@ -152,12 +161,6 @@
         const words = message.trim().split(/\s+/);
         const initials = words.map(word => word[0]?.toUpperCase() || '').join('');
         return `chat_${initials}_${Math.random().toString(36).substr(2, 5)}`;
-      }
-
-      saveMessage(chatId, sender, message) {
-        if (!this.chatHistory[chatId]) this.chatHistory[chatId] = [];
-        this.chatHistory[chatId].push({ sender, message, timestamp: new Date().toISOString() });
-        this.saveUserData();
       }
 
       loadChat(chatId) {
@@ -224,11 +227,15 @@
       }
 
       async sendMessage(message) {
-        if (!this.isInitialized || !this.user) {
-          this.addMessage('Sports AI', 'Please log in to chat about sports!');
+        if (!this.user) {
+          this.addMessage('Sports AI', 'Please log in to chat!');
           this.redirectToLogin();
           return;
         }
+
+        const sendBtn = document.getElementById('send-btn');
+        sendBtn.disabled = true;
+        sendBtn.classList.add('loading');
 
         if (this.isFirstMessage) {
           this.currentChatId = this.generateChatId(message);
@@ -248,15 +255,26 @@
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ message })
           });
-          if (!response.ok) throw new Error('Server error');
+          
+          if (!response.ok) throw new Error('Failed to get response');
           const data = await response.json();
           this.addMessage('Sports AI', data.response);
           this.saveMessage(this.currentChatId, 'Sports AI', data.response);
         } catch (error) {
-          this.addMessage('Sports AI', `Oops! Something went wrong: ${error.message}. Try again!`);
+          this.addMessage('Sports AI', 'Sorry, something went wrong. Try again!');
+          console.error('Error:', error);
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.classList.remove('loading');
         }
+      }
+
+      saveMessage(chatId, sender, message) {
+        if (!this.chatHistory[chatId]) this.chatHistory[chatId] = [];
+        this.chatHistory[chatId].push({ sender, message, timestamp: new Date().toISOString() });
+        this.saveUserData();
       }
 
       startNewChat() {
@@ -289,7 +307,7 @@
 
       redirectToLogin() {
         const returnUrl = encodeURIComponent(window.location.href);
-        // window.location.href = `login.html?returnUrl=${returnUrl}`;
+        // window.location.href = `/public/login.html?returnUrl=${returnUrl}`;
         window.location.href = `${window.location.origin}/public/login.html?returnUrl=${returnUrl}`;
 
       }
@@ -304,7 +322,8 @@
           this.addMessage('Sports AI', 'You have been logged out.');
           this.redirectToLogin();
         } catch (error) {
-          this.addMessage('Sports AI', `Logout failed: ${error.message}`);
+          this.addMessage('Sports AI', 'Logout failed. Try again!');
+          console.error('Logout error:', error);
         }
       }
 
@@ -330,15 +349,13 @@
       const chatManager = new ChatManager();
       await chatManager.init();
 
-      if (!chatManager.isInitialized) return;
-
       const chatForm = document.getElementById('chat-form');
       const userInput = document.getElementById('user-input');
       const newChatBtn = document.getElementById('new-chat');
       const themeToggle = document.getElementById('theme-toggle');
       const loginBtn = document.getElementById('login-btn');
 
-      chatForm.addEventListener('submit', async e => {
+      chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const message = userInput.value.trim();
         if (message) {
@@ -347,7 +364,7 @@
         }
       });
 
-      userInput.addEventListener('keypress', async e => {
+      userInput.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           const message = userInput.value.trim();
