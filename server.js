@@ -8,6 +8,7 @@ const app = express();
 const allowedOrigins = [
   "https://kreeda-ai-chat-bot-frontend.vercel.app",
   "https://kreeda-ai-chat-bot-f-git-7c6e8b-prashant-jhas-projects-1e280b00.vercel.app",
+  "http://localhost:3000", // Optional: for local testing
 ];
 
 // Configure CORS
@@ -16,13 +17,15 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (like Postman) or from allowed origins
       if (!origin || allowedOrigins.includes(origin)) {
+        console.log(`Origin allowed: ${origin}`); // Debug log
         callback(null, true);
       } else {
+        console.log(`Origin blocked: ${origin}`); // Debug log
         callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ["GET", "POST"], // Allow only GET and POST
-    allowedHeaders: ["Content-Type"], // Specify allowed headers
+    methods: ["GET", "POST", "OPTIONS"], // Include OPTIONS explicitly
+    allowedHeaders: ["Content-Type", "Authorization"], // Add Authorization
   })
 );
 
