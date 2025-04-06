@@ -1,17 +1,17 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path"); // Needed to serve static files safely
-const {
-  GoogleGenerativeAI,
-  HarmCategory,
-  HarmBlockThreshold,
-} = require("@google/generative-ai");
+const path = require("path");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 
-
-// Enable CORS
-app.use(cors());
+// Enable CORS with specific origins (add your Vercel URL)
+const allowedOrigins = ["https://your-vercel-app.vercel.app"];
+app.use(
+  cors({
+    origin: allowedOrigins,
+  })
+);
 
 // Middleware to parse JSON requests
 app.use(express.json());
@@ -19,7 +19,14 @@ app.use(express.json());
 // Serve static files from "public" folder
 app.use(express.static(path.join(__dirname, "public")));
 
-const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";
+// Directly insert the API key here
+const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";  // Keep your API key here
+
+if (!apiKey) {
+  console.error("Google API key is missing. Please make sure it's defined in the code.");
+  process.exit(1);  // Exit the server if the key is not present
+}
+
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({
@@ -76,7 +83,6 @@ app.post("/chat", async (req, res) => {
 
 // Start the server
 const PORT = process.env.PORT || 1000;
-
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
