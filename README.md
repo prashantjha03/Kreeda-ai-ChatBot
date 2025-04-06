@@ -1,4 +1,5 @@
-🏏 Kreeda-ai ChatBot
+                                                                🏏 Kreeda-ai ChatBot
+
 Kreeda-ai ChatBot is an AI-powered chatbot designed exclusively for sports-related conversations. Built with a focus on real-time interaction, this smart assistant delivers accurate and instant responses to any queries within the domain of sports. Whether it's cricket, football, tennis, or any other sport, Kreeda-ai is your go-to digital sports expert.
 
 🚫 It strictly ignores or rejects any queries outside the sports domain, keeping the user experience focused, relevant, and distraction-free.
