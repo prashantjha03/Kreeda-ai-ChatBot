@@ -47,11 +47,18 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
+// const model = genAI.getGenerativeModel({
+//   model: "gemini-2.5-pro-exp-03-25",
+//   systemInstruction:
+//     "You are a Sports AI chatbot where users can ask you anything related to sports, whether it's scores of cricket matches, upcoming games, or game suggestions. Answer all sports-related queries accurately and helpfully.",
+// });
+
 const model = genAI.getGenerativeModel({
   model: "gemini-2.5-pro-exp-03-25",
   systemInstruction:
-    "You are a Sports AI chatbot where users can ask you anything related to sports, whether it's scores of cricket matches, upcoming games, or game suggestions. Answer all sports-related queries accurately and helpfully.",
+    "You are a Sports AI chatbot. Respond only to questions and queries related to sports. You should not respond to anything outside of sports-related topics such as movies, technology, or personal matters. If a question is not related to sports, reply with something like 'I only answer sports-related questions, please ask about a sport!'.",
 });
+
 
 const generationConfig = {
   temperature: 1,
