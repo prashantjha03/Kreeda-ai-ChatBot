@@ -56,7 +56,7 @@ const chatSession = model.startChat({
 
 // Serve the index.html file
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html");
+  res.sendFile(__dirname + "/login.html");
 });
 
 // Handle chat POST requests
