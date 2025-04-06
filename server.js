@@ -6,7 +6,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const app = express();
 
 // Enable CORS with specific origins (add your Vercel URL)
-const allowedOrigins = ["https://kreeda-ai-chat-bot-frontend.vercel.app/"];
+const allowedOrigins = ["https://kreeda-ai-chat-bot-frontend.vercel.app"];  // Make sure URL is correct
 app.use(
   cors({
     origin: allowedOrigins,
@@ -15,9 +15,6 @@ app.use(
 
 // Middleware to parse JSON requests
 app.use(express.json());
-
-// Serve static files from "public" folder
-app.use(express.static(path.join(__dirname, "public")));
 
 // Directly insert the API key here
 const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";  // Keep your API key here
@@ -62,11 +59,6 @@ const chatSession = model.startChat({
   ],
 });
 
-// Route for root URL
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
 // Chat route
 app.post("/chat", async (req, res) => {
   const { message } = req.body;
@@ -79,6 +71,11 @@ app.post("/chat", async (req, res) => {
     console.error("Error:", error);
     res.status(500).json({ response: "Sorry, something went wrong!" });
   }
+});
+
+// Root route - Instead of serving index.html, just respond with a message
+app.get("/", (req, res) => {
+  res.json({ message: "Server is running, but static files are handled by Vercel." });
 });
 
 // Start the server
