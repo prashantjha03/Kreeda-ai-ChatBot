@@ -8,7 +8,7 @@ const {
 } = require("@google/generative-ai");
 
 const app = express();
-const port = 10000; // use environment port for deployment
+const PORT = process.env.PORT || 5000; // use environment port for deployment
 
 // Enable CORS
 app.use(cors());
