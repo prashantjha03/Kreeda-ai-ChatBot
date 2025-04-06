@@ -140,10 +140,11 @@
                 this.applyTheme();
             }
 
-            getReturnUrl() {
-                const urlParams = new URLSearchParams(window.location.search);
-                return decodeURIComponent(urlParams.get('https://kreeda-ai-chatbot.onrender.com/') || 'index.html')
-            }
+            function getReturnUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return decodeURIComponent(urlParams.get('returnUrl') || 'index.html');
+}
+
 
             redirectToReturnUrl() {
                 window.location.href = this.getReturnUrl();
