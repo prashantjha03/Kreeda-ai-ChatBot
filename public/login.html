@@ -142,9 +142,7 @@
 
             function getReturnUrl() {
     const urlParams = new URLSearchParams(window.location.search);
-    return "/login.html?returnUrl=" + encodeURIComponent(window.location.href);
-
-        // decodeURIComponent(urlParams.get('returnUrl') || 'index.html');
+    return decodeURIComponent(urlParams.get('returnUrl') || 'index.html');
 }
 
 
