@@ -15,6 +15,9 @@ app.use(cors()); // Add this line
 // Middleware to parse JSON requests
 app.use(express.json());
 
+app.use(express.static("public"));
+
+
 const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";
 const genAI = new GoogleGenerativeAI(apiKey);
 
