@@ -1,39 +1,45 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 
-// Enable CORS with specific origins (add your Vercel URL)
-const allowedOrigins = ["https://kreeda-ai-chat-bot-frontend.vercel.app"];  // Make sure URL is correct
+// Define allowed origins (your Vercel frontend URLs)
+const allowedOrigins = [
+  "https://kreeda-ai-chat-bot-frontend.vercel.app",
+  "https://kreeda-ai-chat-bot-f-git-7c6e8b-prashant-jhas-projects-1e280b00.vercel.app",
+];
+
+// Configure CORS
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like Postman) or from allowed origins
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST"], // Allow only GET and POST
+    allowedHeaders: ["Content-Type"], // Specify allowed headers
   })
 );
-
 
 // Middleware to parse JSON requests
 app.use(express.json());
 
-
-
-app.use(cors({
-  origin: 'https://kreeda-ai-chat-bot-f-git-7c6e8b-prashant-jhas-projects-1e280b00.vercel.app',  // Vercel frontend URL
-  methods: ['GET', 'POST'],  // Allow GET and POST requests
-}));
-
-app.get('/api', (req, res) => {
-  res.send('CORS is working!');
+// Test endpoint to verify CORS and server status
+app.get("/api", (req, res) => {
+  res.json({ message: "CORS is working!" });
 });
 
-// Directly insert the API key here
-const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";  // Keep your API key here
+// Google Generative AI setup
+const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo"; // Hardcoded API key
 
 if (!apiKey) {
-  console.error("Google API key is missing. Please make sure it's defined in the code.");
-  process.exit(1);  // Exit the server if the key is not present
+  console.error("Google API key is missing.");
+  process.exit(1); // Exit if no API key
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -75,6 +81,10 @@ const chatSession = model.startChat({
 app.post("/chat", async (req, res) => {
   const { message } = req.body;
 
+  if (!message) {
+    return res.status(400).json({ response: "Message is required" });
+  }
+
   try {
     const result = await chatSession.sendMessage(message);
     const aiResponse = result.response.text();
@@ -85,13 +95,13 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Root route - Instead of serving index.html, just respond with a message
+// Root route
 app.get("/", (req, res) => {
-  res.json({ message: "Server is running, but static files are handled by Vercel." });
+  res.json({ message: "Server is running, use /chat to interact with the AI." });
 });
 
 // Start the server
-const PORT = process.env.PORT || 1000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 10000; // Use 10000 to match Render config
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
