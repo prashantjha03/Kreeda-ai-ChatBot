@@ -249,7 +249,7 @@
 
         try {
           const token = await auth.currentUser.getIdToken();
-          const response = await fetch('http://localhost:3000/chat', {
+          const response = await fetch('http://localhost:10000/chat', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
