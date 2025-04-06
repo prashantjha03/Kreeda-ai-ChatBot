@@ -15,9 +15,6 @@ app.use(cors()); // Add this line
 // Middleware to parse JSON requests
 app.use(express.json());
 
-app.use(express.static("public"));
-
-
 const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";
 const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -56,7 +53,7 @@ const chatSession = model.startChat({
 
 // Serve the index.html file
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/login.html");
+  res.sendFile(__dirname + "./public/index.html");
 });
 
 // Handle chat POST requests
