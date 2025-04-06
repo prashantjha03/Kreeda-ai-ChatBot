@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Kreeda-ai</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        .input-shadow {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 transition-colors duration-300">
+    <div class="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl space-y-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Kreeda-ai ⚽🏏🏀</h1>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Welcome back! Please log in</p>
+            </div>
+            <button id="theme-toggle" title="Toggle Theme" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                <svg id="theme-icon" class="w-5 h-5 text-gray-800 dark:text-gray-200" fill="currentColor" viewBox="0 0 20 20">
+                    <path id="icon-path" />
+                </svg>
+            </button>
+        </div>
+
+        <form id="login-form" class="space-y-4">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                <input type="email" id="email" required
+                    class="w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 input-shadow"
+                    placeholder="you@example.com" />
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                <input type="password" id="password" required
+                    class="w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 input-shadow"
+                    placeholder="••••••••" />
+            </div>
+            <div class="space-y-3 pt-2">
+                <button type="submit"
+                    class="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition font-semibold input-shadow">
+                    Sign In
+                </button>
+                <button type="button" id="google-login"
+                    class="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition font-semibold input-shadow">
+                    Sign in with Google
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center text-sm text-gray-500 dark:text-gray-400">
+            New user?
+            <a href="#" id="create-account-link" class="text-green-500 hover:underline font-medium">Create Account</a>
+        </div>
+    </div>
+
+    <div id="signup-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-4">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Create New Account</h2>
+            <input id="signup-email" type="email" placeholder="Email"
+                class="w-full p-3 rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white input-shadow" />
+            <input id="signup-password" type="password" placeholder="Password"
+                class="w-full p-3 rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white input-shadow" />
+            <input id="confirm-password" type="password" placeholder="Confirm Password"
+                class="w-full p-3 rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white input-shadow" />
+            <div class="flex justify-between space-x-2 pt-2">
+                <button id="signup-btn"
+                    class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium">
+                    Sign Up
+                </button>
+                <button id="close-modal"
+                    class="w-full bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg font-medium">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD2WwWcNgJkqCqDMpvjLx7xVWDhwIXAdm4",
+            authDomain: "kreeda-ai.firebaseapp.com",
+            projectId: "kreeda-ai",
+            storageBucket: "kreeda-ai.firebasestorage.app",
+            messagingSenderId: "418404445492",
+            appId: "1:418404445492:web:4e5084cd797862c2380961"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        class AuthManager {
+            constructor() {
+                this.theme = localStorage.getItem('theme') || 'light';
+                this.isInitialized = false;
+            }
+
+            async init() {
+                this.applyTheme();
+                
+                // Check if user is already logged in
+                await new Promise(resolve => {
+                    const unsubscribe = auth.onAuthStateChanged(user => {
+                        if (user) {
+                            this.redirectToReturnUrl();
+                        }
+                        unsubscribe();
+                        resolve();
+                    });
+                });
+                
+                this.isInitialized = true;
+                this.setupListeners();
+            }
+
+            applyTheme() {
+                const iconPath = document.getElementById('icon-path');
+                if (this.theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    iconPath.setAttribute('d', 'M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    iconPath.setAttribute('d', 'M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z');
+                }
+                localStorage.setItem('theme', this.theme);
+            }
+
+            toggleTheme() {
+                this.theme = this.theme === 'light' ? 'dark' : 'light';
+                this.applyTheme();
+            }
+
+            getReturnUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                return decodeURIComponent(urlParams.get('returnUrl') || 'index.html');
+            }
+
+            redirectToReturnUrl() {
+                window.location.href = this.getReturnUrl();
+            }
+
+            showError(message) {
+                alert(message); // Could be replaced with a more sophisticated notification system
+            }
+
+            setupListeners() {
+                document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+
+                document.getElementById('login-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!this.isInitialized) return;
+
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+
+                    try {
+                        await auth.signInWithEmailAndPassword(email, password);
+                        this.redirectToReturnUrl();
+                    } catch (error) {
+                        this.showError(`Login failed: ${error.message}`);
+                    }
+                });
+
+                document.getElementById('google-login').addEventListener('click', async () => {
+                    if (!this.isInitialized) return;
+
+                    try {
+                        await auth.signInWithPopup(provider);
+                        this.redirectToReturnUrl();
+                    } catch (error) {
+                        this.showError(`Google login failed: ${error.message}`);
+                    }
+                });
+
+                document.getElementById('create-account-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.getElementById('signup-modal').classList.remove('hidden');
+                    document.getElementById('signup-modal').classList.add('flex');
+                });
+
+                document.getElementById('close-modal').addEventListener('click', () => {
+                    document.getElementById('signup-modal').classList.add('hidden');
+                    document.getElementById('signup-modal').classList.remove('flex');
+                });
+
+                document.getElementById('signup-btn').addEventListener('click', async () => {
+                    if (!this.isInitialized) return;
+
+                    const email = document.getElementById('signup-email').value;
+                    const password = document.getElementById('signup-password').value;
+                    const confirmPassword = document.getElementById('confirm-password').value;
+
+                    if (!email || !password || !confirmPassword) {
+                        this.showError('Please fill in all fields.');
+                        return;
+                    }
+
+                    if (password !== confirmPassword) {
+                        this.showError('Passwords do not match.');
+                        return;
+                    }
+
+                    try {
+                        await auth.createUserWithEmailAndPassword(email, password);
+                        this.redirectToReturnUrl();
+                    } catch (error) {
+                        this.showError(`Signup failed: ${error.message}`);
+                    }
+                });
+            }
+        }
+
+        (async () => {
+            const authManager = new AuthManager();
+            await authManager.init();
+        })();
+    </script>
+</body>
+</html>

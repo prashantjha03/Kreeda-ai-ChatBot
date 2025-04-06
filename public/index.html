@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kreeda-ai</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['class', '[data-theme="dark"]'],
+    }
+  </script>
+  <style>
+    .chat-bubble { transition: all 0.2s ease-in-out; }
+    .chat-bubble:hover { transform: translateY(-2px); }
+    .scrollbar-hidden::-webkit-scrollbar { display: none; }
+    .scrollbar-hidden { -ms-overflow-style: none; scrollbar-width: none; }
+    .input-shadow { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .loading::after {
+      content: ' •••';
+      animation: dots 1s steps(5, end) infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: ' •'; }
+      40% { content: ' ••'; }
+      60% { content: ' •••'; }
+      80%, 100% { content: ' ••••'; }
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col transition-colors duration-300" data-theme="light">
+  <div class="flex flex-1 overflow-hidden">
+    <aside class="hidden md:block w-1/5 p-4 shadow-lg overflow-y-auto bg-white dark:bg-gray-800 transition-colors">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Chat History</h2>
+        <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Toggle Theme">
+          <svg id="theme-icon" class="w-5 h-5 text-gray-800 dark:text-gray-200" fill="currentColor" viewBox="0 0 20 20">
+            <path id="icon-path" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
+          </svg>
+        </button>
+      </div>
+      <div id="chat-history" class="space-y-2 scrollbar-hidden"></div>
+    </aside>
+
+    <main class="flex-1 flex flex-col shadow-lg bg-white dark:bg-gray-900 transition-colors">
+      <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Kreeda-ai ⚽🏏🏀</h1>
+        <div class="flex gap-2">
+          <button id="login-btn" class="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition">
+            Login
+          </button>
+          <button id="new-chat" class="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition">
+            New Chat
+          </button>
+        </div>
+      </div>
+
+      <div class="px-4 py-1 text-sm text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+        Chat ID: <span id="current-chat-id"></span>
+        <span id="user-status" class="float-right">Not logged in</span>
+      </div>
+
+      <div id="chat-container" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-gray-50 dark:bg-gray-800 scrollbar-hidden"></div>
+
+      <form id="chat-form" class="p-4 border-t border-gray-200 dark:border-gray-700 flex gap-2">
+        <input 
+          type="text" 
+          id="user-input" 
+          placeholder="Ask me anything about sports..." 
+          class="flex-1 p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 input-shadow transition-colors"
+          autocomplete="off"
+        />
+        <button 
+          type="submit" 
+          id="send-btn" 
+          class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition input-shadow"
+        >
+          Send
+        </button>
+      </form>
+    </main>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2WwWcNgJkqCqDMpvjLx7xVWDhwIXAdm4",
+      authDomain: "kreeda-ai.firebaseapp.com",
+      projectId: "kreeda-ai",
+      storageBucket: "kreeda-ai.firebasestorage.app",
+      messagingSenderId: "418404445492",
+      appId: "1:418404445492:web:4e5084cd797862c2380961"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    class ChatManager {
+      constructor() {
+        this.currentChatId = null;
+        this.chatHistory = {};
+        this.theme = localStorage.getItem('theme') || 'light';
+        this.isFirstMessage = true;
+        this.user = null;
+        this.isInitialized = false;
+        this.debounceTimeout = null; // Added for debouncing
+      }
+
+      async init() {
+        this.applyTheme();
+        await this.checkAuthState();
+      }
+
+      async checkAuthState() {
+        return new Promise((resolve) => {
+          const unsubscribe = auth.onAuthStateChanged((user) => {
+            this.user = user ? {
+              email: user.email,
+              name: user.displayName || user.email.split('@')[0],
+              uid: user.uid
+            } : null;
+
+            if (!this.user) {
+              this.updateUserStatus();
+              this.addMessage('Sports AI', 'Please log in to start chatting!');
+              unsubscribe();
+              return resolve();
+            }
+
+            this.loadUserData();
+            this.isInitialized = true;
+            this.updateUserStatus();
+            this.loadChat(this.currentChatId);
+            this.renderChatHistory();
+            document.getElementById('current-chat-id').textContent = this.currentChatId;
+
+            if (!this.chatHistory[this.currentChatId]) {
+              this.addMessage('Sports AI', `Welcome back, ${this.user.name}! How can I help you with sports today?`);
+            }
+            unsubscribe();
+            resolve();
+          }, (error) => {
+            console.error('Auth state error:', error);
+            this.addMessage('Sports AI', 'Error checking login status. Please try again.');
+            resolve();
+          });
+        });
+      }
+
+      loadUserData() {
+        const storageKey = `chatHistory_${this.user.uid}`;
+        this.chatHistory = JSON.parse(localStorage.getItem(storageKey)) || {};
+        this.currentChatId = localStorage.getItem(`currentChatId_${this.user.uid}`) || this.generateChatId();
+        this.isFirstMessage = !this.chatHistory[this.currentChatId];
+      }
+
+      saveUserData() {
+        if (!this.user) return;
+        const storageKey = `chatHistory_${this.user.uid}`;
+        localStorage.setItem(storageKey, JSON.stringify(this.chatHistory));
+        localStorage.setItem(`currentChatId_${this.user.uid}`, this.currentChatId);
+      }
+
+      debounceSave() {
+        clearTimeout(this.debounceTimeout);
+        this.debounceTimeout = setTimeout(() => this.saveUserData(), 500); // Debounce saving
+      }
+
+      generateChatId(message = '') {
+        if (!message) return `chat_${Math.random().toString(36).substr(2, 5)}`;
+        const words = message.trim().split(/\s+/);
+        const initials = words.map(word => word[0]?.toUpperCase() || '').join('');
+        return `chat_${initials}_${Math.random().toString(36).substr(2, 5)}`;
+      }
+
+      loadChat(chatId) {
+        const chatContainer = document.getElementById('chat-container');
+        chatContainer.innerHTML = '';
+        
+        if (this.chatHistory[chatId]) {
+          this.chatHistory[chatId].forEach(msg => this.addMessage(msg.sender, msg.message, false));
+        } else {
+          this.addMessage('Sports AI', 'Hello! Ask me anything about sports to start a chat.', false);
+        }
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      addMessage(sender, message, scroll = true) {
+        const chatContainer = document.getElementById('chat-container');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `mb-2 chat-bubble ${sender === 'You' ? 'text-right' : 'text-left'}`;
+        messageDiv.innerHTML = `
+          <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">${sender} • ${new Date().toLocaleTimeString()}</p>
+          <div class="${sender === 'You' ? 'bg-green-100 dark:bg-green-800' : 'bg-blue-100 dark:bg-blue-800'} p-3 rounded-lg inline-block max-w-[80%] text-gray-800 dark:text-gray-200 shadow-sm">
+            ${this.escapeHtml(message)} <!-- Added HTML escaping -->
+          </div>
+        `;
+        chatContainer.appendChild(messageDiv);
+        if (scroll) chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      renderChatHistory() {
+        const historyContainer = document.getElementById('chat-history');
+        historyContainer.innerHTML = '';
+        Object.keys(this.chatHistory).forEach(chatId => {
+          const historyItem = document.createElement('div');
+          historyItem.className = `flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition ${chatId === this.currentChatId ? 'bg-gray-200 dark:bg-gray-600' : ''}`;
+          const chatInfo = document.createElement('span');
+          chatInfo.className = 'flex-1 text-sm text-gray-800 dark:text-gray-200 truncate';
+          chatInfo.textContent = `${chatId} - ${this.chatHistory[chatId][0]?.message.slice(0, 20) + '...' || 'New chat...'}`;
+          chatInfo.onclick = () => this.switchChat(chatId);
+          const deleteBtn = document.createElement('button');
+          deleteBtn.textContent = '×';
+          deleteBtn.className = 'text-red-500 hover:text-red-700 text-xl font-bold w-6 h-6 flex items-center justify-center';
+          deleteBtn.onclick = (e) => { e.stopPropagation(); this.deleteChat(chatId); };
+          historyItem.appendChild(chatInfo);
+          historyItem.appendChild(deleteBtn);
+          historyContainer.appendChild(historyItem);
+        });
+      }
+
+      switchChat(chatId) {
+        this.currentChatId = chatId;
+        this.saveUserData();
+        this.loadChat(chatId);
+        document.getElementById('current-chat-id').textContent = chatId;
+        this.renderChatHistory();
+      }
+
+      deleteChat(chatId) {
+        if (confirm(`Delete chat ${chatId}?`)) {
+          delete this.chatHistory[chatId];
+          this.saveUserData();
+          if (chatId === this.currentChatId) this.startNewChat();
+          this.renderChatHistory();
+        }
+      }
+
+      async sendMessage(message) {
+        if (!this.user) {
+          this.addMessage('Sports AI', 'Please log in to chat!');
+          this.redirectToLogin();
+          return;
+        }
+
+        const sendBtn = document.getElementById('send-btn');
+        sendBtn.disabled = true;
+        sendBtn.classList.add('loading');
+
+        if (this.isFirstMessage) {
+          this.currentChatId = this.generateChatId(message);
+          this.isFirstMessage = false;
+          document.getElementById('current-chat-id').textContent = this.currentChatId;
+        }
+        
+        this.addMessage('You', message);
+        this.saveMessage(this.currentChatId, 'You', message);
+        this.renderChatHistory();
+
+        try {
+          const token = await auth.currentUser.getIdToken();
+          const response = await fetch('http://localhost:3000/chat', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ message })
+          });
+          
+          if (!response.ok) throw new Error(`Server error: ${response.status}`);
+          const data = await response.json();
+          this.addMessage('Sports AI', data.response);
+          this.saveMessage(this.currentChatId, 'Sports AI', data.response);
+        } catch (error) {
+          this.addMessage('Sports AI', 'Sorry, something went wrong. Please try again!');
+          console.error('Send message error:', error);
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.classList.remove('loading');
+        }
+      }
+
+      saveMessage(chatId, sender, message) {
+        if (!this.chatHistory[chatId]) this.chatHistory[chatId] = [];
+        this.chatHistory[chatId].push({ sender, message, timestamp: new Date().toISOString() });
+        this.debounceSave(); // Use debounced saving
+      }
+
+      startNewChat() {
+        if (!this.user) {
+          this.addMessage('Sports AI', 'Please log in to start a new chat!');
+          this.redirectToLogin();
+          return;
+        }
+        this.currentChatId = this.generateChatId();
+        this.isFirstMessage = true;
+        this.saveUserData();
+        this.loadChat(this.currentChatId);
+        this.renderChatHistory();
+        document.getElementById('current-chat-id').textContent = this.currentChatId;
+      }
+
+      applyTheme() {
+        const themeIcon = document.getElementById('icon-path');
+        document.body.dataset.theme = this.theme;
+        themeIcon.setAttribute('d', this.theme === 'dark' 
+          ? 'M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z' 
+          : 'M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z');
+        localStorage.setItem('theme', this.theme);
+      }
+
+      toggleTheme() {
+        this.theme = this.theme === 'light' ? 'dark' : 'light';
+        this.applyTheme();
+      }
+
+      redirectToLogin() {
+        const returnUrl = encodeURIComponent(window.location.href);
+        window.location.href = `/public/login.html?returnUrl=${returnUrl}`;
+      }
+
+      async logout() {
+        try {
+          await auth.signOut();
+          this.user = null;
+          this.chatHistory = {};
+          this.currentChatId = null;
+          this.updateUserStatus();
+          this.addMessage('Sports AI', 'You have been logged out.');
+          this.redirectToLogin();
+        } catch (error) {
+          this.addMessage('Sports AI', 'Logout failed. Try again!');
+          console.error('Logout error:', error);
+        }
+      }
+
+      updateUserStatus() {
+        const statusElement = document.getElementById('user-status');
+        const loginBtn = document.getElementById('login-btn');
+        
+        if (this.user) {
+          statusElement.textContent = `Logged in as ${this.user.email}`;
+          loginBtn.textContent = 'Logout';
+          loginBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+          loginBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+        } else {
+          statusElement.textContent = 'Not logged in';
+          loginBtn.textContent = 'Login';
+          loginBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+          loginBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+        }
+      }
+
+      // Added HTML escaping for security
+      escapeHtml(unsafe) {
+        return unsafe
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+    }
+
+    (async () => {
+      const chatManager = new ChatManager();
+      await chatManager.init();
+
+      const chatForm = document.getElementById('chat-form');
+      const userInput = document.getElementById('user-input');
+      const newChatBtn = document.getElementById('new-chat');
+      const themeToggle = document.getElementById('theme-toggle');
+      const loginBtn = document.getElementById('login-btn');
+
+      chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = userInput.value.trim();
+        if (message) {
+          await chatManager.sendMessage(message);
+          userInput.value = '';
+        }
+      });
+
+      userInput.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const message = userInput.value.trim();
+          if (message) {
+            await chatManager.sendMessage(message);
+            userInput.value = '';
+          }
+        }
+      });
+
+      newChatBtn.addEventListener('click', () => {
+        chatManager.startNewChat();
+        userInput.focus();
+      });
+
+      themeToggle.addEventListener('click', () => chatManager.toggleTheme());
+
+      loginBtn.addEventListener('click', async () => {
+        if (chatManager.user) {
+          await chatManager.logout();
+        } else {
+          chatManager.redirectToLogin();
+        }
+      });
+
+      userInput.focus();
+    })();
+  </script>
+</body>
+</html>
