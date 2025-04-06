@@ -1,5 +1,6 @@
 const express = require("express");
-const cors = require("cors"); // Add this line
+const cors = require("cors");
+const path = require("path"); // Needed to serve static files safely
 const {
   GoogleGenerativeAI,
   HarmCategory,
@@ -7,15 +8,16 @@ const {
 } = require("@google/generative-ai");
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // use environment port for deployment
 
-// Enable CORS for all routes
-app.use(cors()); // Add this line
+// Enable CORS
+app.use(cors());
 
 // Middleware to parse JSON requests
 app.use(express.json());
 
-app.use("public");
+// Serve static files from "public" folder
+app.use(express.static(path.join(__dirname, "public")));
 
 const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -53,12 +55,12 @@ const chatSession = model.startChat({
   ],
 });
 
-// Serve the index.html file
+// Route for root URL
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + "./public/index.html");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Handle chat POST requests
+// Chat route
 app.post("/chat", async (req, res) => {
   const { message } = req.body;
 
