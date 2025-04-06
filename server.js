@@ -13,8 +13,20 @@ app.use(
   })
 );
 
+
 // Middleware to parse JSON requests
 app.use(express.json());
+
+
+
+app.use(cors({
+  origin: 'https://kreeda-ai-chat-bot-f-git-7c6e8b-prashant-jhas-projects-1e280b00.vercel.app',  // Vercel frontend URL
+  methods: ['GET', 'POST'],  // Allow GET and POST requests
+}));
+
+app.get('/api', (req, res) => {
+  res.send('CORS is working!');
+});
 
 // Directly insert the API key here
 const apiKey = "AIzaSyCvn9SG3QphhNdUwo-FscWepVKhmhnWgSo";  // Keep your API key here
